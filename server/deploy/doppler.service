@@ -1,0 +1,23 @@
+[Unit]
+Description=Doppler (faster-whisper)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=stt
+Group=stt
+WorkingDirectory=/opt/doppler
+EnvironmentFile=/etc/doppler.env
+Environment=HOME=/var/lib/doppler
+ExecStart=/opt/doppler/.venv/bin/uvicorn stt.main:app --host ${STT_HOST} --port ${STT_PORT}
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/doppler
+
+[Install]
+WantedBy=multi-user.target

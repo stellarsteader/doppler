@@ -1,0 +1,21 @@
+name: doppler
+
+services:
+  doppler:
+    build: .
+    image: doppler-server
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Always inside the volume, even if .env sets a local path.
+      STT_DB_PATH: /data/transcripts.db
+    ports:
+      # Local only by default. Set STT_HOST in .env to listen on another address.
+      - "${STT_HOST:-127.0.0.1}:${STT_PORT:-8000}:8000"
+    volumes:
+      - data:/data
+
+volumes:
+  data:

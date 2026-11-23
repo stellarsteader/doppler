@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>dev.doppler.mac</string>
+    <key>CFBundleName</key>
+    <string>Doppler</string>
+    <key>CFBundleDisplayName</key>
+    <string>Doppler</string>
+    <key>CFBundleExecutable</key>
+    <string>Doppler</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.2</string>
+    <!-- Menu bar app: no Dock icon. -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Doppler listens while you use your shortcut and turns what you say into text.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Doppler transcribes the audio an app is playing when you choose that app as the input.</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>

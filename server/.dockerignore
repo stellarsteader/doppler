@@ -1,0 +1,10 @@
+.claude
+.env
+.env.*
+.venv
+__pycache__
+data
+*.db
+deploy
+Dockerfile
+compose.yaml

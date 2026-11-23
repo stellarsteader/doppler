@@ -1,0 +1,14 @@
+[project]
+name = "doppler"
+version = "0.1.0"
+description = "Self-hosted speech-to-text server (faster-whisper) with text-only history"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "faster-whisper>=1.1.1",
+    "av>=15",
+    "numpy",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "websockets>=13",
+]
