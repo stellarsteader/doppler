@@ -7,7 +7,7 @@ enum SettingsTab: Hashable { case general, server, permissions, about }
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
     @StateObject private var permissions = PermissionsModel()
-    @StateObject private var server = ServerStatus()
+    @ObservedObject private var server = ServerStatus.shared
     @State private var tab: SettingsTab = .general
     @State private var contentHeight: CGFloat = 801
     @State private var sizer = SettingsWindowSizer()
@@ -332,19 +332,43 @@ struct ServerTab: View {
     }
 }
 
+/// Shared by the menu, Settings and recording, and re-checked every few seconds so a server
+/// that goes down or comes back shows up right away.
 final class ServerStatus: ObservableObject {
+    static let shared = ServerStatus()
+
     enum State: Equatable { case checking, ok, failed }
 
     @Published private(set) var state: State = .checking
     @Published private(set) var title = "Checking…"
     @Published private(set) var detail = ""
     private var task: Task<Void, Never>?
+    private var timer: Timer?
 
+    func startPolling() {
+        guard timer == nil else { return }
+        check()
+        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.refresh() }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    /// Shows "Checking…" until the answer arrives: for the refresh button and URL or token edits.
     func check(after delay: Double = 0) {
-        task?.cancel()
         state = .checking
         title = "Checking…"
         detail = ""
+        run(after: delay)
+    }
+
+    /// Keeps showing the last result while checking, so polling doesn't flicker.
+    func refresh() {
+        guard task == nil else { return }
+        run(after: 0)
+    }
+
+    private func run(after delay: Double) {
+        task?.cancel()
         task = Task { @MainActor in
             if delay > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -352,10 +376,15 @@ final class ServerStatus: ObservableObject {
             }
             let result = await TranscriptionAPI.check(settings: .shared)
             if Task.isCancelled { return }
-            state = result.ok ? .ok : .failed
-            title = result.ok ? "Connected" : "Not connected"
+            task = nil
+            let newState: State = result.ok ? .ok : .failed
+            let newTitle = result.ok ? "Connected" : "Not connected"
             // On success the message is "URL · model"; the URL is already in the row below.
-            detail = result.ok ? result.message.components(separatedBy: " · ").last ?? result.message : result.message
+            let newDetail = result.ok ? result.message.components(separatedBy: " · ").last ?? result.message : result.message
+            // Only publish changes, so a poll with the same answer doesn't redraw anything.
+            if state != newState { state = newState }
+            if title != newTitle { title = newTitle }
+            if detail != newDetail { detail = newDetail }
         }
     }
 }

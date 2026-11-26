@@ -9,8 +9,11 @@ final class AppController: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private(set) var recent: [String] = []
     @Published private(set) var lastError: String?
+    /// lastError came from talking to the server, so it's stale once the server answers again.
+    private var lastErrorFromServer = false
 
     let settings = AppSettings.shared
+    let server = ServerStatus.shared
     let overlay = OverlayModel()
     private lazy var panel = NotchPanel(model: overlay)
     private let hotkeys = HotkeyManager()
@@ -36,7 +39,17 @@ final class AppController: ObservableObject {
         }.store(in: &cancellables)
         settings.$showLiveText.assign(to: \.showLiveText, on: overlay).store(in: &cancellables)
         settings.$notchStyle.assign(to: \.style, on: overlay).store(in: &cancellables)
+        // The settings window and menu are drawn dark; set it app-wide before any window exists,
+        // or text fields made under a light system appearance keep dark text.
+        NSApp.appearance = NSAppearance(named: .darkAqua)
         updateDockVisibility()
+
+        server.startPolling()
+        server.$state.removeDuplicates().sink { [weak self] state in
+            guard let self, state == .ok, lastErrorFromServer else { return }
+            lastError = nil
+            lastErrorFromServer = false
+        }.store(in: &cancellables)
 
         Task { _ = await MicrophoneSource.requestPermission() }
         if settings.autoPaste { requestAccessibilityOnce() }
@@ -87,6 +100,13 @@ final class AppController: ObservableObject {
         let source = settings.inputSource.makeSource()
         if let problem = source.checkAccess() { fail(problem); return }
         guard let url = settings.streamURL else { fail("Set your server URL in Settings."); return }
+        // Only once a check has passed, which also covers the first moments after launch.
+        // The menu already shows the server's state, so this isn't kept as lastError.
+        switch server.state {
+        case .ok: break
+        case .checking: fail("Checking server…", remember: false); return
+        case .failed: server.refresh(); fail("Server not connected", remember: false); return
+        }
 
         lastError = nil
         pcmLock.withLock { pcm = Data() }
@@ -115,8 +135,8 @@ final class AppController: ObservableObject {
             guard let self, let recorder, self.recorder === recorder else { return }
             self.overlay.push(level: level)
         }
-        recorder.onError = { [weak self] error in
-            guard let self, self.state == .recording, self.recorder === recorder else { return }
+        recorder.onError = { [weak self, weak recorder] error in
+            guard let self, let recorder, self.state == .recording, self.recorder === recorder else { return }
             self.autoStop?.cancel()
             self.recorder = nil
             session.cancel()
@@ -209,7 +229,9 @@ final class AppController: ObservableObject {
             overlay.phase = .done
             panel.hide(after: 1.8)
         case .failure(let error):
+            server.refresh()  // so the menu shows a server that just went down without waiting for the poll
             fail(error.localizedDescription)
+            lastErrorFromServer = true
         }
     }
 
@@ -223,9 +245,12 @@ final class AppController: ObservableObject {
         }
     }
 
-    private func fail(_ message: String) {
+    private func fail(_ message: String, remember: Bool = true) {
         state = .idle
-        lastError = message
+        if remember {
+            lastError = message
+            lastErrorFromServer = false
+        }
         panel.present(.error(message))
         play(.error)
         panel.hide(after: 3)

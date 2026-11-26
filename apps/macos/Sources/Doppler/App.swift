@@ -60,6 +60,7 @@ enum MenuBarIcon {
 struct MenuContent: View {
     @EnvironmentObject private var controller: AppController
     @EnvironmentObject private var settings: AppSettings
+    @ObservedObject private var server = ServerStatus.shared
     @State private var copiedIndex: Int?
     @State private var clearCopied: Task<Void, Never>?
 
@@ -124,7 +125,7 @@ struct MenuContent: View {
                 Image(nsImage: MenuBarIcon.glyph)
                 Text("Doppler").font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 0)
-                Circle().fill(Mono.text).frame(width: 6, height: 6)
+                Circle().fill(serverOffline ? Mono.error : Mono.text).frame(width: 6, height: 6)
                 Text(status).font(.system(size: 12)).foregroundStyle(Mono.secondary)
             }
             if controller.state == .idle {
@@ -160,9 +161,11 @@ struct MenuContent: View {
         }
     }
 
+    private var serverOffline: Bool { server.state == .failed }
+
     private var status: String {
         switch controller.state {
-        case .idle: "Ready"
+        case .idle: serverOffline ? "Server offline" : "Ready"
         case .recording: "Listening…"
         case .processing: "Transcribing…"
         }
